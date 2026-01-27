@@ -1,86 +1,92 @@
 import 'package:flutter/material.dart';
 
 void main() {
-  runApp(const NovaLinkHub());
+  runApp(const NovaApp());
 }
 
-class NovaLinkHub extends StatelessWidget {
-  const NovaLinkHub({super.key});
+class NovaApp extends StatelessWidget {
+  const NovaApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Nova LinkHub',
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: Colors.black,
-        primaryColor: Colors.greenAccent,
-        textTheme: const TextTheme(
-          bodyMedium: TextStyle(color: Colors.white),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.greenAccent,
-            foregroundColor: Colors.black,
-            minimumSize: const Size(double.infinity, 48),
-          ),
-        ),
-      ),
-      onGenerateRoute: (settings) {
-        if (settings.name == '/' || settings.name == null) {
-          return MaterialPageRoute(builder: (_) => const HomePage());
-        }
-
-        final uri = Uri.parse(settings.name!);
-        if (uri.pathSegments.length == 1) {
-          final username = uri.pathSegments.first;
-          return MaterialPageRoute(
-            builder: (_) => ProfilePage(username: username),
-          );
-        }
-
-        return MaterialPageRoute(builder: (_) => const HomePage());
-      },
+      theme: ThemeData.dark(),
+      home: const LoginPage(),
     );
   }
 }
 
-/* ---------------- HOME PAGE ---------------- */
+/* ================= LOGIN ================= */
 
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  final email = TextEditingController();
+  final password = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
+        child: SizedBox(
+          width: 350,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.link, size: 72, color: Colors.greenAccent),
-              const SizedBox(height: 16),
               const Text(
                 'Nova LinkHub',
-                style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'One smart link for everything',
-                style: TextStyle(color: Colors.grey),
+              const SizedBox(height: 30),
+
+              TextField(
+                controller: email,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 15),
+
+              TextField(
+                controller: password,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 20),
 
               ElevatedButton(
-                onPressed: () => Navigator.pushNamed(context, '/gani'),
-                child: const Text('View @gani'),
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const DashboardPage(),
+                    ),
+                  );
+                },
+                child: const Text('Login'),
               ),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: () => Navigator.pushNamed(context, '/nova'),
-                child: const Text('View @nova'),
+
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const RegisterPage(),
+                    ),
+                  );
+                },
+                child: const Text("Create account"),
               ),
             ],
           ),
@@ -90,88 +96,95 @@ class HomePage extends StatelessWidget {
   }
 }
 
-/* ---------------- PROFILE PAGE ---------------- */
+/* ================= REGISTER ================= */
 
-class ProfilePage extends StatefulWidget {
-  final String username;
-  const ProfilePage({super.key, required this.username});
+class RegisterPage extends StatelessWidget {
+  const RegisterPage({super.key});
 
   @override
-  State<ProfilePage> createState() => _ProfilePageState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: SizedBox(
+          width: 350,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'Register',
+                style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 30),
+
+              const TextField(
+                decoration: InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 15),
+
+              const TextField(
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const DashboardPage(),
+                    ),
+                  );
+                },
+                child: const Text('Register'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-class _ProfilePageState extends State<ProfilePage> {
-  int totalClicks = 0;
+/* ================= DASHBOARD ================= */
 
-  final List<Map<String, String>> links = [
-    {'title': 'GitHub', 'url': 'https://github.com'},
-    {'title': 'LinkedIn', 'url': 'https://linkedin.com'},
-    {'title': 'Portfolio', 'url': 'https://example.com'},
-  ];
-
-  void trackClick() {
-    setState(() {
-      totalClicks++;
-    });
-  }
+class DashboardPage extends StatelessWidget {
+  const DashboardPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('@${widget.username}'),
-        backgroundColor: Colors.black,
+        title: const Text('Your Hubs'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginPage()),
+              );
+            },
+          ),
+        ],
       ),
-      body: Padding(
+      body: ListView(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            CircleAvatar(
-              radius: 42,
-              backgroundColor: Colors.greenAccent,
-              child: Text(
-                widget.username[0].toUpperCase(),
-                style: const TextStyle(
-                  fontSize: 32,
-                  color: Colors.black,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '@${widget.username}',
-              style: const TextStyle(fontSize: 20),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Total Clicks: $totalClicks',
-              style: const TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 24),
-
-            Expanded(
-              child: ListView.separated(
-                itemCount: links.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  return ElevatedButton(
-                    onPressed: () {
-                      trackClick();
-                    },
-                    child: Text(links[index]['title']!),
-                  );
-                },
-              ),
-            ),
-
-            const SizedBox(height: 12),
-            Text(
-              'Share: /${widget.username}',
-              style: const TextStyle(color: Colors.greenAccent),
-            ),
-          ],
-        ),
+        children: const [
+          Card(child: ListTile(title: Text("My First Hub"))),
+          Card(child: ListTile(title: Text("Instagram Links"))),
+          Card(child: ListTile(title: Text("Project Portfolio"))),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: null,
+        child: Icon(Icons.add),
       ),
     );
   }

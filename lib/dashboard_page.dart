@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'models/hub_model.dart';
-import 'widgets/create_hub_modal.dart';
+import 'package:nova_linkhub/models/hub_model.dart';
+import 'package:nova_linkhub/services/api_service.dart';
+import 'package:nova_linkhub/widgets/create_hub_modal.dart';
+import 'package:nova_linkhub/hub_editor_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -10,25 +12,64 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-  final List<Hub> hubs = [];
+  List<Hub> hubs = [];
+  bool isLoading = true;
+  String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchHubs();
+  }
+
+  Future<void> _fetchHubs() async {
+    setState(() => isLoading = true);
+    try {
+      final res = await ApiService.get('/hubs');
+      if (res is List) {
+        setState(() {
+          hubs = res.map((x) => Hub.fromJson(x)).toList();
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        error = e.toString();
+        isLoading = false;
+      });
+    }
+  }
 
   void openCreateHub() {
     showDialog(
       context: context,
       builder: (_) => CreateHubModal(
-        onCreate: (title, desc) {
-          setState(() {
-            hubs.add(
-              Hub(
-                id: DateTime.now().millisecondsSinceEpoch.toString(),
-                title: title,
-                description: desc,
-              ),
-            );
-          });
+        onCreate: (title, description) async {
+          try {
+            // Need to generate a username or ask for it.
+            // For now, let's generate one from title + random
+            final username =
+                "${title.replaceAll(' ', '').toLowerCase()}${DateTime.now().millisecondsSinceEpoch % 1000}";
+
+            await ApiService.post('/hubs', {
+              'title': title,
+              'bio': description,
+              'username': username,
+            });
+            _fetchHubs(); // Refresh
+          } catch (e) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text("Error creating hub: $e")));
+          }
         },
       ),
     );
+  }
+
+  void _logout() async {
+    await ApiService.logout();
+    if (mounted) Navigator.pushReplacementNamed(context, '/login');
   }
 
   @override
@@ -45,27 +86,45 @@ class _DashboardPageState extends State<DashboardPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
-                  children: const [
-                    Icon(Icons.link, color: Colors.green),
-                    SizedBox(width: 10),
-                    Text(
+                  children: [
+                    Icon(
+                      Icons.link,
+                      color: Theme.of(context).primaryColor,
+                      size: 32,
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
                       "Your Hubs",
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 26,
+                        fontSize: 28,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
                 ),
-                ElevatedButton.icon(
-                  onPressed: openCreateHub,
-                  icon: const Icon(Icons.add),
-                  label: const Text("New Hub"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.black,
-                  ),
+                Row(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: openCreateHub,
+                      icon: const Icon(Icons.add),
+                      label: const Text("New Hub"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).primaryColor,
+                        foregroundColor: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    OutlinedButton.icon(
+                      onPressed: _logout,
+                      icon: const Icon(Icons.logout, size: 18),
+                      label: const Text("Logout"),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white54,
+                        side: const BorderSide(color: Colors.white24),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -73,16 +132,25 @@ class _DashboardPageState extends State<DashboardPage> {
             const SizedBox(height: 40),
 
             Expanded(
-              child: hubs.isEmpty
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : error != null
+                  ? Center(
+                      child: Text(
+                        "Error: $error",
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    )
+                  : hubs.isEmpty
                   ? _empty()
                   : GridView.builder(
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        crossAxisSpacing: 20,
-                        mainAxisSpacing: 20,
-                        childAspectRatio: 1.4,
-                      ),
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 24,
+                            mainAxisSpacing: 24,
+                            childAspectRatio: 1.5,
+                          ),
                       itemCount: hubs.length,
                       itemBuilder: (_, i) => _hubCard(hubs[i]),
                     ),
@@ -98,20 +166,16 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.link, size: 60, color: Colors.white38),
+          const Icon(Icons.link_off, size: 60, color: Colors.white12),
           const SizedBox(height: 16),
           const Text(
             "No hubs yet",
-            style: TextStyle(color: Colors.white, fontSize: 20),
+            style: TextStyle(color: Colors.white38, fontSize: 18),
           ),
           const SizedBox(height: 10),
-          ElevatedButton(
+          TextButton(
             onPressed: openCreateHub,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.black,
-            ),
-            child: const Text("Create Your First Hub"),
+            child: const Text("Create your first hub"),
           ),
         ],
       ),
@@ -120,43 +184,97 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _hubCard(Hub hub) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: const Color(0xFF0B0B0B),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white24),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.5),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            hub.title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.hub, color: Theme.of(context).primaryColor),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  hub.title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: Text(
+              hub.bio.isEmpty ? "No description" : hub.bio,
+              style: const TextStyle(color: Colors.white54, height: 1.5),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            hub.description.isEmpty
-                ? "No description"
-                : hub.description,
-            style: const TextStyle(color: Colors.white60),
-          ),
-          const Spacer(),
+          const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              TextButton(
+              TextButton.icon(
                 onPressed: () {
-                  Navigator.pushNamed(context, '/hub', arguments: hub);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => HubEditorPage(hub: hub)),
+                  ).then((_) => _fetchHubs()); // Refresh on return
                 },
-                child: const Text("Edit"),
+                icon: const Icon(Icons.edit, size: 16),
+                label: const Text("Edit"),
+                style: TextButton.styleFrom(foregroundColor: Colors.white70),
               ),
-              const Text(
-                "View Public",
-                style: TextStyle(color: Colors.green),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white10,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.visibility,
+                      size: 14,
+                      color: Colors.white54,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      "${hub.views}",
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

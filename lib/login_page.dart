@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:nova_linkhub/services/api_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -13,7 +14,10 @@ class _LoginPageState extends State<LoginPage>
   Offset mousePos = Offset.zero;
   bool isSignup = false;
   bool showPopup = true;
+  bool isLoading = false;
+  String? errorMessage;
 
+  final TextEditingController emailCtrl = TextEditingController();
   final TextEditingController passwordCtrl = TextEditingController();
 
   late AnimationController anim;
@@ -26,10 +30,13 @@ class _LoginPageState extends State<LoginPage>
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-    scale = Tween(begin: 0.95, end: 1.0)
-        .animate(CurvedAnimation(parent: anim, curve: Curves.easeOut));
+    scale = Tween(
+      begin: 0.95,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOut));
     anim.forward();
 
+    // Auto-hide popup after 5s
     Timer(const Duration(seconds: 5), () {
       if (mounted) setState(() => showPopup = false);
     });
@@ -38,6 +45,7 @@ class _LoginPageState extends State<LoginPage>
   @override
   void dispose() {
     anim.dispose();
+    emailCtrl.dispose();
     passwordCtrl.dispose();
     super.dispose();
   }
@@ -46,18 +54,59 @@ class _LoginPageState extends State<LoginPage>
   bool minLen(String v) => v.length >= 8;
   bool upper(String v) => v.contains(RegExp(r'[A-Z]'));
   bool number(String v) => v.contains(RegExp(r'[0-9]'));
-  bool special(String v) =>
-      v.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
+  bool special(String v) => v.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
 
   bool get validPassword {
     final v = passwordCtrl.text;
     return minLen(v) && upper(v) && number(v) && special(v);
   }
 
+  Future<void> _handleAuth() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
+    try {
+      final email = emailCtrl.text.trim();
+      final password = passwordCtrl.text;
+
+      if (email.isEmpty || password.isEmpty) {
+        throw Exception("Please fill all fields");
+      }
+
+      final endpoint = isSignup ? '/auth/signup' : '/auth/login';
+      final body = {
+        'email': email,
+        'password': password,
+        if (isSignup) 'name': email.split('@')[0], // Default name from email
+      };
+
+      final response = await ApiService.post(endpoint, body);
+
+      if (response['token'] != null) {
+        await ApiService.saveToken(response['token']);
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/dashboard');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(
+          () => errorMessage = e.toString().replaceAll('Exception: ', ''),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.black, // Fallback
       body: MouseRegion(
         onHover: (e) => setState(() => mousePos = e.position),
         child: Stack(
@@ -66,16 +115,18 @@ class _LoginPageState extends State<LoginPage>
             Positioned(
               left: mousePos.dx - 180,
               top: mousePos.dy - 180,
-              child: Container(
-                width: 360,
-                height: 360,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      Colors.green.withOpacity(0.18),
-                      Colors.transparent
-                    ],
+              child: IgnorePointer(
+                child: Container(
+                  width: 360,
+                  height: 360,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        Theme.of(context).primaryColor.withOpacity(0.18),
+                        Colors.transparent,
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -92,11 +143,11 @@ class _LoginPageState extends State<LoginPage>
                     color: const Color(0xFF0B0B0B),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: Colors.green.withOpacity(0.3),
+                      color: Theme.of(context).primaryColor.withOpacity(0.3),
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.green.withOpacity(0.35),
+                        color: Theme.of(context).primaryColor.withOpacity(0.15),
                         blurRadius: 30,
                       ),
                     ],
@@ -104,10 +155,10 @@ class _LoginPageState extends State<LoginPage>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
+                      Text(
                         "NOVA",
                         style: TextStyle(
-                          color: Colors.green,
+                          color: Theme.of(context).primaryColor,
                           fontSize: 32,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 2,
@@ -116,12 +167,11 @@ class _LoginPageState extends State<LoginPage>
                       const SizedBox(height: 6),
                       const Text(
                         "One link. Infinite presence.",
-                        style:
-                            TextStyle(color: Colors.white70, fontSize: 13),
+                        style: TextStyle(color: Colors.white70, fontSize: 13),
                       ),
                       const SizedBox(height: 26),
 
-                      _input("Email"),
+                      _input("Email", controller: emailCtrl),
                       const SizedBox(height: 14),
 
                       _input(
@@ -133,12 +183,30 @@ class _LoginPageState extends State<LoginPage>
 
                       if (isSignup) ...[
                         const SizedBox(height: 12),
-                        _rule("At least 8 characters", minLen(passwordCtrl.text)),
+                        _rule(
+                          "At least 8 characters",
+                          minLen(passwordCtrl.text),
+                        ),
                         _rule("1 uppercase letter", upper(passwordCtrl.text)),
                         _rule("1 number", number(passwordCtrl.text)),
                         _rule(
-                            "1 special character", special(passwordCtrl.text)),
+                          "1 special character",
+                          special(passwordCtrl.text),
+                        ),
                       ],
+
+                      if (errorMessage != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Text(
+                            errorMessage!,
+                            style: const TextStyle(
+                              color: Colors.redAccent,
+                              fontSize: 13,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
 
                       const SizedBox(height: 22),
 
@@ -146,24 +214,32 @@ class _LoginPageState extends State<LoginPage>
                         width: double.infinity,
                         height: 48,
                         child: ElevatedButton(
-                          onPressed: isSignup && !validPassword
+                          onPressed: (isSignup && !validPassword) || isLoading
                               ? null
-                              : () {
-                                  Navigator.pushReplacementNamed(
-                                      context, '/dashboard');
-                                },
+                              : _handleAuth,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
+                            backgroundColor: Theme.of(context).primaryColor,
                             foregroundColor: Colors.black,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30),
                             ),
                           ),
-                          child: Text(
-                            isSignup ? "Create Account" : "Login",
-                            style: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
+                          child: isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.black,
+                                  ),
+                                )
+                              : Text(
+                                  isSignup ? "Create Account" : "Login",
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                         ),
                       ),
 
@@ -174,9 +250,11 @@ class _LoginPageState extends State<LoginPage>
                         child: Text(
                           isSignup
                               ? "Already have an account? Login"
-                              : "Don’t have an account? Sign up",
-                          style: const TextStyle(
-                              color: Colors.green, fontSize: 13),
+                              : "Don't have an account? Sign up", // Fixed quote
+                          style: TextStyle(
+                            color: Theme.of(context).primaryColor,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ],
@@ -191,16 +269,19 @@ class _LoginPageState extends State<LoginPage>
                 right: 24,
                 bottom: 24,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 14,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF101010),
                     borderRadius: BorderRadius.circular(14),
-                    border:
-                        Border.all(color: Colors.green.withOpacity(0.4)),
+                    border: Border.all(
+                      color: Theme.of(context).primaryColor.withOpacity(0.4),
+                    ),
                   ),
                   child: const Text(
-                    "🇮🇳 Happy 77th Republic Day!",
+                    "Welcome to Nova LinkHub",
                     style: TextStyle(color: Colors.white, fontSize: 13),
                   ),
                 ),
@@ -233,8 +314,10 @@ class _LoginPageState extends State<LoginPage>
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide:
-              const BorderSide(color: Colors.green, width: 1.2),
+          borderSide: BorderSide(
+            color: Theme.of(context).primaryColor,
+            width: 1.2,
+          ),
         ),
       ),
     );
@@ -246,13 +329,13 @@ class _LoginPageState extends State<LoginPage>
         Icon(
           ok ? Icons.check_circle : Icons.circle_outlined,
           size: 14,
-          color: ok ? Colors.green : Colors.white38,
+          color: ok ? Theme.of(context).primaryColor : Colors.white38,
         ),
         const SizedBox(width: 6),
         Text(
           text,
           style: TextStyle(
-            color: ok ? Colors.green : Colors.white38,
+            color: ok ? Theme.of(context).primaryColor : Colors.white38,
             fontSize: 12,
           ),
         ),

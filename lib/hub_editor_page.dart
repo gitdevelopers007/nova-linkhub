@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:nova_linkhub/models/hub_model.dart';
 import 'package:nova_linkhub/services/api_service.dart';
 import 'package:nova_linkhub/public_page.dart';
@@ -81,6 +82,66 @@ class _HubEditorPageState extends State<HubEditorPage> {
     }
   }
 
+  void _showShareDialog(BuildContext context) {
+    // Construct the public link
+    final String shareLink = "/#/p/${hub.username}";
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF111111),
+        title: const Text("Share Hub", style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              "Your unique public link:",
+              style: TextStyle(color: Colors.white70),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.greenAccent.withOpacity(0.3)),
+              ),
+              child: SelectableText(
+                "https://your-site.vercel.app$shareLink",
+                style: const TextStyle(
+                  color: Colors.greenAccent,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "(Replace 'your-site' with your Vercel URL)",
+              style: TextStyle(color: Colors.white30, fontSize: 10),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.copy, size: 16),
+            label: const Text("Copy Suffix"),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: shareLink));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Link suffix copied!")),
+              );
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -99,6 +160,10 @@ class _HubEditorPageState extends State<HubEditorPage> {
             ],
           ),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.share, color: Colors.greenAccent),
+              onPressed: () => _showShareDialog(context),
+            ),
             IconButton(
               icon: const Icon(Icons.public),
               onPressed: () {

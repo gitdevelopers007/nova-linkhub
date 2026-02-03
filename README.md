@@ -4,7 +4,7 @@
 
 Nova LinkHub is a powerful, self-hosted "Link in Bio" tool featuring a futuristic "Matrix" aesthetic. Built with a **Flutter** frontend and **Node.js (Express + MongoDB)** backend, it offers a premium, responsive experience for managing and sharing your digital identity.
 
-![Nova LinkHub](https://via.placeholder.com/800x400?text=Nova+LinkHub+Preview)
+![Nova LinkHub] nova-linkhub.netlify.app
 
 ## ✨ Features
 

@@ -5,8 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiService {
   // Use localhost:5005 for local development.
   // For Android Emulator use 10.0.2.2 instead of localhost
-  static const String baseUrl = 'http://localhost:5005/api';
-  // For production: Change to 'https://nova-linkhub.onrender.com/api'
+  // static const String baseUrl = 'http://localhost:5005/api';
+  static const String baseUrl = 'https://nova-linkhub.onrender.com/api';
 
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();

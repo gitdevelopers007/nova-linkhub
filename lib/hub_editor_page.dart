@@ -83,8 +83,8 @@ class _HubEditorPageState extends State<HubEditorPage> {
   }
 
   void _showShareDialog(BuildContext context) {
-    // Construct the public link
-    final String shareLink = "/#/p/${hub.username}";
+    // Construct the public link (clean URL without hash)
+    final String shareLink = "/${hub.username}";
 
     showDialog(
       context: context,
@@ -107,7 +107,7 @@ class _HubEditorPageState extends State<HubEditorPage> {
                 border: Border.all(color: Colors.greenAccent.withOpacity(0.3)),
               ),
               child: SelectableText(
-                "https://your-site.vercel.app$shareLink",
+                "https://your-site.netlify.app$shareLink",
                 style: const TextStyle(
                   color: Colors.greenAccent,
                   fontWeight: FontWeight.bold,
@@ -116,7 +116,7 @@ class _HubEditorPageState extends State<HubEditorPage> {
             ),
             const SizedBox(height: 8),
             const Text(
-              "(Replace 'your-site' with your Vercel URL)",
+              "(Replace 'your-site' with your Netlify URL)",
               style: TextStyle(color: Colors.white30, fontSize: 10),
             ),
           ],
@@ -128,12 +128,12 @@ class _HubEditorPageState extends State<HubEditorPage> {
           ),
           ElevatedButton.icon(
             icon: const Icon(Icons.copy, size: 16),
-            label: const Text("Copy Suffix"),
+            label: const Text("Copy Link"),
             onPressed: () {
               Clipboard.setData(ClipboardData(text: shareLink));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Link suffix copied!")),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text("Link copied!")));
               Navigator.pop(context);
             },
           ),

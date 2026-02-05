@@ -4,7 +4,10 @@ import 'package:nova_linkhub/login_page.dart';
 import 'package:nova_linkhub/dashboard_page.dart';
 import 'package:nova_linkhub/public_page.dart';
 
+import 'package:flutter_web_plugins/url_strategy.dart';
+
 void main() {
+  usePathUrlStrategy(); // Enable clean URLs without #
   runApp(const NovaApp());
 }
 
@@ -26,10 +29,12 @@ class NovaApp extends StatelessWidget {
           return MaterialPageRoute(builder: (_) => const DashboardPage());
         }
 
-        // Dynamic Public Route: /p/username
+        // Dynamic Public Route: /username (clean URLs)
         final uri = Uri.parse(settings.name ?? '');
-        if (uri.pathSegments.length == 2 && uri.pathSegments[0] == 'p') {
-          final username = uri.pathSegments[1];
+        if (uri.pathSegments.length == 1 &&
+            uri.pathSegments[0] != 'login' &&
+            uri.pathSegments[0] != 'dashboard') {
+          final username = uri.pathSegments[0];
           return MaterialPageRoute(
             builder: (_) => PublicPage(username: username),
           );
